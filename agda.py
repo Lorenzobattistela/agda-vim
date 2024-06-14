@@ -1,7 +1,7 @@
+from __future__ import unicode_literals
 import vim
 import re
 import subprocess
-from __future__ import unicode_literals
 
 from functools import wraps
 from sys import version_info
