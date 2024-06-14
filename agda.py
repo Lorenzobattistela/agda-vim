@@ -1,8 +1,8 @@
 from __future__ import unicode_literals
+
 import vim
 import re
 import subprocess
-
 from functools import wraps
 from sys import version_info
 
@@ -15,8 +15,7 @@ def vim_func(vim_fname_or_func=None, conv=None):
         vim_fname = vim_fname or fname
 
         arg_names = func.__code__.co_varnames[:func.__code__.co_argcount]
-        arg_defaults = dict(
-            zip(arg_names[:-len(func.__defaults__ or ()):], func.__defaults__ or []))
+        arg_defaults = dict(zip(arg_names[:-len(func.__defaults__ or ()):], func.__defaults__ or []))
 
         @wraps(func)
         def from_vim(vim_arg_dict):
@@ -43,6 +42,7 @@ def vim_func(vim_fname_or_func=None, conv=None):
             vim_fname=vim_fname,
             vim_params=', '.join(arg_names),
             fname=fname,
+            python_cmd = "py" if version_info.major == 2 else "py3",
         ))
         return func
 
@@ -66,30 +66,22 @@ def vim_bool(s):
 
 # start Agda
 # TODO: I'm pretty sure this will start an agda process per buffer which is less than desirable...
-agda = subprocess.Popen(["agda", "--interaction"], bufsize=1,
-                        stdin=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True)
+agda = subprocess.Popen(["agda", "--interaction"], bufsize = 1, stdin = subprocess.PIPE, stdout = subprocess.PIPE, universal_newlines = True)
 
 goals = {}
 annotations = []
 
-agdaVersion = [0, 0, 0, 0]
+agdaVersion = [0,0,0,0]
 
 rewriteMode = "Normalised"
 
 # This technically needs to turn a string into a Haskell escaped string, buuuut just gonna cheat.
-
-
 def escape(s):
-    # keep '\\' case first
-    return s.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
+    return s.replace('\\', '\\\\').replace('"', '\\"').replace('\n','\\n') # keep '\\' case first
 
 # This technically needs to turn a Haskell escaped string into a string, buuuut just gonna cheat.
-
-
 def unescape(s):
-    # hacktastic
-    return s.replace('\\\\', '\x00').replace('\\"', '"').replace('\\n', '\n').replace('\x00', '\\')
-
+    return s.replace('\\\\','\x00').replace('\\"', '"').replace('\\n','\n').replace('\x00', '\\') # hacktastic
 
 def setRewriteMode(mode):
     global rewriteMode
@@ -99,18 +91,15 @@ def setRewriteMode(mode):
     else:
         rewriteMode = mode
 
-
 def promptUser(msg):
     vim.command('call inputsave()')
     result = vim.eval('input("%s")' % msg)
     vim.command('call inputrestore()')
     return result
 
-
 def AgdaRestart():
     global agda
-    agda = subprocess.Popen(["agda", "--interaction"], bufsize=1,
-                            stdin=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True)
+    agda = subprocess.Popen(["agda", "--interaction"], bufsize = 1, stdin = subprocess.PIPE, stdout = subprocess.PIPE, universal_newlines = True)
 
 def linec2b(row, n):
     return int(vim.eval('byteidx(getline(%d),%d)' % (row, n)))
@@ -118,15 +107,13 @@ def linec2b(row, n):
 def findGoals(goalList):
     global goals
 
-    # TODO: This should become obsolete given good sync rules in the syntax file.
-    vim.command('syn sync fromstart')
+    vim.command('syn sync fromstart') # TODO: This should become obsolete given good sync rules in the syntax file.
 
     goals = {}
     lines = vim.current.buffer
-
     agdaHolehlID = vim.eval('hlID("agdaHole")')
-
     for row, line in enumerate(lines, start=1):
+
         start = 0
         while start != -1:
             qstart = line.find("?", start)
@@ -143,29 +130,24 @@ def findGoals(goalList):
 
                 if vim.eval('synID("%d", "%d", 0)' % (row, bcol)) == agdaHolehlID:
                     goals[(row, bcol)] = goalList.pop(0)
-            if len(goalList) == 0:
-                break
-        if len(goalList) == 0:
-            break
+            if len(goalList) == 0: break
+        if len(goalList) == 0: break
 
-    # TODO: This wipes out any sync rules and should be removed if good sync rules are added to the syntax file.
-    vim.command('syn sync clear')
-
+    vim.command('syn sync clear') # TODO: This wipes out any sync rules and should be removed if good sync rules are added to the syntax file.
 
 def findGoal(row, col):
     global goals
     if (row, col) not in goals:
         return None
-    return goals[(row, col)]
+    return goals[(row,col)]
 
 def getOutput():
-    line = agda.stdout.readline()[7:]  # get rid of the "Agda2> " prompt
+    line = agda.stdout.readline()[7:] # get rid of the "Agda2> " prompt
     lines = []
     while not line.startswith('Agda2> cannot read') and line != "":
         lines.append(line)
         line = agda.stdout.readline()
     return lines
-
 
 def parseVersion(versionString):
     global agdaVersion
@@ -173,28 +155,21 @@ def parseVersion(versionString):
     agdaVersion = agdaVersion + [0]*max(0, 4-len(agdaVersion))
 
 # This is not very efficient presumably.
-
-
 def c2b(n):
     return int(vim.eval('byteidx(join(getline(1, "$"), "\n"),%d)' % n))
 
 # See https://github.com/agda/agda/blob/323f58f9b8dad239142ed1dfa0c60338ea2cb157/src/data/emacs-mode/annotation.el#L112
-
-
 def parseAnnotation(spans):
     global annotations
     anns = re.findall(r'\((\d+) (\d+) \([^\)]*\) \w+ \w+ \(\"([^"]*)\" \. (\d+)\)\)', spans)
     # TODO: This is assumed to be in sorted order.
     for ann in anns:
-        annotations.append(
-            [c2b(int(ann[0])-1), c2b(int(ann[1])-1), ann[2], c2b(int(ann[3]))])
-
+        annotations.append([c2b(int(ann[0])-1), c2b(int(ann[1])-1), ann[2], c2b(int(ann[3]))])
 
 def searchAnnotation(lo, hi, idx):
     global annotations
 
-    if hi == 0:
-        return None
+    if hi == 0: return None
 
     while hi - lo > 1:
         mid = lo + (hi - lo) // 2
@@ -210,18 +185,15 @@ def searchAnnotation(lo, hi, idx):
     else:
         return None
 
-
 def gotoAnnotation():
     global annotations
     byteOffset = int(vim.eval('line2byte(line(".")) + col(".") - 1'))
     result = searchAnnotation(0, len(annotations), byteOffset)
-    if result is None:
-        return
+    if result is None: return
     (file, pos) = result
     targetBuffer = None
     for buffer in vim.buffers:
-        if buffer.name == file:
-            targetBuffer = buffer.number
+        if buffer.name == file: targetBuffer = buffer.number
 
     if targetBuffer is None:
         vim.command('edit %s' % file)
@@ -229,27 +201,20 @@ def gotoAnnotation():
         vim.command('buffer %s' % targetBuffer)
     vim.command('%dgo' % pos)
 
-
-def interpretResponse(responses, quiet=False):
+def interpretResponse(responses, quiet = False):
     for response in responses:
         if response.startswith('(agda2-info-action ') or response.startswith('(agda2-info-action-and-copy '):
-            if quiet and '*Error*' in response:
-                vim.command('cwindow')
+            if quiet and '*Error*' in response: vim.command('cwindow')
             strings = re.findall(r'"((?:[^"\\]|\\.)*)"', response[19:])
             if strings[0] == '*Agda Version*':
                 parseVersion(strings[1])
-            if quiet:
-                continue
-            vim.command('call s:LogAgda("%s","%s","%s")' %
-                        (strings[0], strings[1], response.endswith('t)')))
+            if quiet: continue
+            vim.command('call s:LogAgda("%s","%s","%s")'% (strings[0], strings[1], response.endswith('t)')))
         elif "(agda2-goals-action '" in response:
-            findGoals([int(s) for s in re.findall(
-                r'(\d+)', response[response.index("agda2-goals-action '")+21:])])
+            findGoals([int(s) for s in re.findall(r'(\d+)', response[response.index("agda2-goals-action '")+21:])])
         elif "(agda2-make-case-action-extendlam '" in response:
-            # this probably isn't safe
-            response = response.replace("?", "{!   !}")
-            cases = re.findall(
-                r'"((?:[^"\\]|\\.)*)"', response[response.index("agda2-make-case-action-extendlam '")+34:])
+            response = response.replace("?", "{!   !}") # this probably isn't safe
+            cases = re.findall(r'"((?:[^"\\]|\\.)*)"', response[response.index("agda2-make-case-action-extendlam '")+34:])
             col = vim.current.window.cursor[1]
             line = vim.current.line
 
@@ -280,16 +245,13 @@ def interpretResponse(responses, quiet=False):
                     ends = re.search(r'[ \t]*$', line[col:])
             end = ends.start() + col + correction
 
-            vim.current.line = line[:start] + " " + \
-                "; ".join(cases) + " " + line[end:]
+            vim.current.line = line[:start] + " " + "; ".join(cases) + " " + line[end:]
             f = vim.current.buffer.name
             sendCommandLoad(f, quiet)
             break
         elif "(agda2-make-case-action '" in response:
-            # this probably isn't safe
-            response = response.replace("?", "{!   !}")
-            cases = re.findall(
-                r'"((?:[^"\\]|\\.)*)"', response[response.index("agda2-make-case-action '")+24:])
+            response = response.replace("?", "{!   !}") # this probably isn't safe
+            cases = re.findall(r'"((?:[^"\\]|\\.)*)"', response[response.index("agda2-make-case-action '")+24:])
             row = vim.current.window.cursor[0]
             prefix = re.match(r'[ \t]*', vim.current.line).group()
             vim.current.buffer[row-1:row] = [prefix + case for case in cases]
@@ -305,25 +267,21 @@ def interpretResponse(responses, quiet=False):
         elif response.startswith('(agda2-highlight-add-annotations '):
             parseAnnotation(response)
         else:
-            pass  # print(response)
-
+            pass # print(response)
 
 def sendCommand(arg, quiet=False, highlighting=False):
     vim.command('silent! write')
     f = vim.current.buffer.name
     # The x is a really hacky way of getting a consistent final response.  Namely, "cannot read"
-    agda.stdin.write('IOTCM "%s" %s Direct (%s)\nx\n' % (escape(f),"Interactive" if highlighting else "None", arg))
+    agda.stdin.write('IOTCM "%s" %s Direct (%s)\nx\n' % (escape(f), "Interactive" if highlighting else "None", arg))
     interpretResponse(getOutput(), quiet)
 
-
 def sendCommandLoadHighlightInfo(file, quiet):
-    sendCommand('Cmd_load_highlighting_info "%s"' % escape(file), quiet=quiet, highlighting=True)
+    sendCommand('Cmd_load_highlighting_info "%s"' % escape(file), quiet = quiet, highlighting = True)
 
-
-def sendCommandLoad(file, quiet, highlighting=None):
+def sendCommandLoad(file, quiet, highlighting = None):
     global agdaVersion
-    # in 2.5 they changed it so Cmd_load takes commandline arguments
-    if agdaVersion < [2, 5, 0, 0]:
+    if agdaVersion < [2,5,0,0]: # in 2.5 they changed it so Cmd_load takes commandline arguments
         incpaths_str = ",".join(map(lambda bs: str(bs, 'utf-8'), vim.vars['agdavim_agda_includepathlist']))
     else:
         incpaths_str = "\"-i\"," + ",\"-i\",".join(map(lambda bs: str(bs, 'utf-8'), vim.vars['agdavim_agda_includepathlist']))
@@ -331,7 +289,7 @@ def sendCommandLoad(file, quiet, highlighting=None):
         highlighting = vim.vars['agdavim_enable_goto_definition']
     sendCommand('Cmd_load "%s" [%s]' % (escape(file), incpaths_str), quiet = quiet, highlighting = highlighting)
 
-# def getIdentifierAtCursor():
+#def getIdentifierAtCursor():
 #    (r, c) = vim.current.window.cursor
 #    line = vim.current.line
 #    try:
@@ -341,10 +299,8 @@ def sendCommandLoad(file, quiet, highlighting=None):
 #        return None
 #    return line[start:end]
 
-
 def replaceHole(replacement):
-    # TODO: This probably needs to be handled better
-    rep = replacement.replace('\n', ' ').replace('    ', ';')
+    rep = replacement.replace('\n', ' ').replace('    ', ';') # TODO: This probably needs to be handled better
     (r, c) = vim.current.window.cursor
     line = vim.current.line
     if vim.eval("getline('.')[col('.')-1]") == "?":
@@ -363,7 +319,7 @@ def replaceHole(replacement):
         vim.current.line = rep + vim.eval("getline('.')[%d:]" % end)
     else:
         vim.current.line = vim.eval("getline('.')[:%d]" % (start - 1)) + rep + vim.eval("getline('.')[%d:]" % end)
-        
+
 def getHoleBodyAtCursor():
     (r, c) = vim.current.window.cursor
     line = vim.current.line
@@ -377,18 +333,17 @@ def getHoleBodyAtCursor():
         nextMatch = vim.eval("matchend(getline('.'), '{!', %d)" % start)
     end = int(vim.eval("match(getline('.'), '!}', col('.')-2)"))
     if start == -1 or end == -1:
-       return None
-    result = vim.eval("getline('.')[%d:%d]" % (start, end, -1)).strip()
+        return None
+    result = vim.eval("getline('.')[%d:%d]" % (start, end - 1)).strip()
     if result == "":
         result = "?"
     return (result, findGoal(r, start-1))
-
 
 def getWordAtCursor():
     return vim.eval("expand('<cWORD>')").strip()
 
 
-# Directly exposed functions: {
+## Directly exposed functions: {
 
 @vim_func(conv={'quiet': vim_bool})
 def AgdaVersion(quiet):
@@ -416,21 +371,19 @@ def AgdaGotoAnnotation():
 def AgdaGive():
     result = getHoleBodyAtCursor()
 
-    if agdaVersion < [2, 5, 3, 0]:
+    if agdaVersion < [2,5,3,0]:
         useForce = ""
     else:
-        useForce = "WithoutForce"  # or WithForce
+        useForce = "WithoutForce" # or WithForce
 
     if result is None:
         print("No hole under the cursor")
     elif result[1] is None:
         print("Goal not loaded")
     elif result[0] == "?":
-        sendCommand('Cmd_give %s %d noRange "%s"' % (
-            useForce, result[1], escape(promptUser("Enter expression: "))))
+        sendCommand('Cmd_give %s %d noRange "%s"' % (useForce, result[1], escape(promptUser("Enter expression: "))))
     else:
-        sendCommand('Cmd_give %s %d noRange "%s"' %
-                    (useForce, result[1], escape(result[0])))
+        sendCommand('Cmd_give %s %d noRange "%s"' % (useForce, result[1], escape(result[0])))
 
 
 @vim_func
@@ -441,11 +394,9 @@ def AgdaMakeCase():
     elif result[1] is None:
         print("Goal not loaded")
     elif result[0] == "?":
-        sendCommand('Cmd_make_case %d noRange "%s"' %
-                    (result[1], escape(promptUser("Make case on: "))))
+        sendCommand('Cmd_make_case %d noRange "%s"' % (result[1], escape(promptUser("Make case on: "))))
     else:
-        sendCommand('Cmd_make_case %d noRange "%s"' %
-                    (result[1], escape(result[0])))
+        sendCommand('Cmd_make_case %d noRange "%s"' % (result[1], escape(result[0])))
 
 
 @vim_func
@@ -456,8 +407,7 @@ def AgdaRefine(unfoldAbstract):
     elif result[1] is None:
         print("Goal not loaded")
     else:
-        sendCommand('Cmd_refine_or_intro %s %d noRange "%s"' %
-                    (unfoldAbstract, result[1], escape(result[0])))
+        sendCommand('Cmd_refine_or_intro %s %d noRange "%s"' % (unfoldAbstract, result[1], escape(result[0])))
 
 
 @vim_func
@@ -468,12 +418,10 @@ def AgdaAuto():
     elif result[1] is None:
         print("Goal not loaded")
     else:
-        if agdaVersion < [2, 6, 0, 0]:
-            sendCommand('Cmd_auto %d noRange "%s"' % (
-                result[1], escape(result[0]) if result[0] != "?" else ""))
+        if agdaVersion < [2,6,0,0]:
+            sendCommand('Cmd_auto %d noRange "%s"' % (result[1], escape(result[0]) if result[0] != "?" else ""))
         else:
-            sendCommand('Cmd_autoOne %d noRange "%s"' % (
-                result[1], escape(result[0]) if result[0] != "?" else ""))
+            sendCommand('Cmd_autoOne %d noRange "%s"' % (result[1], escape(result[0]) if result[0] != "?" else ""))
 
 
 @vim_func
@@ -484,38 +432,33 @@ def AgdaContext():
     elif result[1] is None:
         print("Goal not loaded")
     else:
-        sendCommand('Cmd_goal_type_context_infer %s %d noRange "%s"' %
-                    (rewriteMode, result[1], escape(result[0])))
+        sendCommand('Cmd_goal_type_context_infer %s %d noRange "%s"' % (rewriteMode, result[1], escape(result[0])))
 
 
 @vim_func
 def AgdaInfer():
     result = getHoleBodyAtCursor()
     if result is None:
-        sendCommand('Cmd_infer_toplevel %s "%s"' %
-                    (rewriteMode, escape(promptUser("Enter expression: "))))
+        sendCommand('Cmd_infer_toplevel %s "%s"' % (rewriteMode, escape(promptUser("Enter expression: "))))
     elif result[1] is None:
         print("Goal not loaded")
     else:
-        sendCommand('Cmd_infer %s %d noRange "%s"' %
-                    (rewriteMode, result[1], escape(result[0])))
+        sendCommand('Cmd_infer %s %d noRange "%s"' % (rewriteMode, result[1], escape(result[0])))
 
 
 # As of 2.5.2, the options are "DefaultCompute", "IgnoreAbstract", "UseShowInstance"
 @vim_func
 def AgdaNormalize(unfoldAbstract):
-    if agdaVersion < [2, 5, 2, 0]:
+    if agdaVersion < [2,5,2,0]:
         unfoldAbstract = str(unfoldAbstract == "DefaultCompute")
 
     result = getHoleBodyAtCursor()
     if result is None:
-        sendCommand('Cmd_compute_toplevel %s "%s"' %
-                    (unfoldAbstract, escape(promptUser("Enter expression: "))))
+        sendCommand('Cmd_compute_toplevel %s "%s"' % (unfoldAbstract, escape(promptUser("Enter expression: "))))
     elif result[1] is None:
         print("Goal not loaded")
     else:
-        sendCommand('Cmd_compute %s %d noRange "%s"' %
-                    (unfoldAbstract, result[1], escape(result[0])))
+        sendCommand('Cmd_compute %s %d noRange "%s"' % (unfoldAbstract, result[1], escape(result[0])))
 
 
 @vim_func
@@ -529,36 +472,29 @@ def AgdaWhyInScope(termName):
     elif result[1] is None:
         print("Goal not loaded")
     else:
-        sendCommand('Cmd_why_in_scope %d noRange "%s"' %
-                    (result[1], escape(result[0])))
+        sendCommand('Cmd_why_in_scope %d noRange "%s"' % (result[1], escape(result[0])))
 
 
 @vim_func
 def AgdaShowModule(moduleName):
     result = getHoleBodyAtCursor() if moduleName == '' else None
 
-    if agdaVersion < [2, 4, 2, 0]:
+    if agdaVersion < [2,4,2,0]:
         if result is None:
-            moduleName = promptUser(
-                "Enter module name: ") if moduleName == '' else moduleName
-            sendCommand('Cmd_show_module_contents_toplevel "%s"' %
-                        escape(moduleName))
+            moduleName = promptUser("Enter module name: ") if moduleName == '' else moduleName
+            sendCommand('Cmd_show_module_contents_toplevel "%s"' % escape(moduleName))
         elif result[1] is None:
             print("Goal not loaded")
         else:
-            sendCommand('Cmd_show_module_contents %d noRange "%s"' %
-                        (result[1], escape(result[0])))
+            sendCommand('Cmd_show_module_contents %d noRange "%s"' % (result[1], escape(result[0])))
     else:
         if result is None:
-            moduleName = promptUser(
-                "Enter module name: ") if moduleName == '' else moduleName
-            sendCommand('Cmd_show_module_contents_toplevel %s "%s"' %
-                        (rewriteMode, escape(moduleName)))
+            moduleName = promptUser("Enter module name: ") if moduleName == '' else moduleName
+            sendCommand('Cmd_show_module_contents_toplevel %s "%s"' % (rewriteMode, escape(moduleName)))
         elif result[1] is None:
             print("Goal not loaded")
         else:
-            sendCommand('Cmd_show_module_contents %s %d noRange "%s"' %
-                        (rewriteMode, result[1], escape(result[0])))
+            sendCommand('Cmd_show_module_contents %s %d noRange "%s"' % (rewriteMode, result[1], escape(result[0])))
 
 
 @vim_func
@@ -570,11 +506,9 @@ def AgdaHelperFunction():
     elif result[1] is None:
         print("Goal not loaded")
     elif result[0] == "?":
-        sendCommand('Cmd_helper_function %s %d noRange "%s"' % (
-            rewriteMode, result[1], escape(promptUser("Enter name for helper function: "))))
+        sendCommand('Cmd_helper_function %s %d noRange "%s"' % (rewriteMode, result[1], escape(promptUser("Enter name for helper function: "))))
     else:
-        sendCommand('Cmd_helper_function %s %d noRange "%s"' %
-                    (rewriteMode, result[1], escape(result[0])))
+        sendCommand('Cmd_helper_function %s %d noRange "%s"' % (rewriteMode, result[1], escape(result[0])))
 
 
-# }
+## }
