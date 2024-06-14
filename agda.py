@@ -204,7 +204,12 @@ def gotoAnnotation():
 def interpretResponse(responses, quiet = False):
     for response in responses:
         if response.startswith('(agda2-info-action ') or response.startswith('(agda2-info-action-and-copy '):
-            if quiet and '*Error*' in response: vim.command('cwindow')
+            if quiet and '*Error*' in response: 
+                prev_winnr = int(vim.eval("winnr()"))
+                vim.command('cwindow')
+                vim.command(f"{prev_winnr}wincmd w")
+            else:
+                vim.command('cclose')
             strings = re.findall(r'"((?:[^"\\]|\\.)*)"', response[19:])
             if strings[0] == '*Agda Version*':
                 parseVersion(strings[1])
@@ -352,6 +357,16 @@ def AgdaVersion(quiet):
 
 @vim_func(conv={'quiet': vim_bool})
 def AgdaLoad(quiet):
+    def clear_agda_buffer():
+        prevwinnr = int(vim.eval("winnr()"))
+        agdawinnr = int(vim.eval("bufwinnr('__Agda__')"))
+        if agdawinnr != -1:
+            vim.command(f"{agdawinnr}wincmd w")
+            vim.command("%d")
+            vim.command(f"{prevwinnr}wincmd w")
+
+    
+    clear_agda_buffer()
     f = vim.current.buffer.name
     sendCommandLoad(f, quiet)
 
