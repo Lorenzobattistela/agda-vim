@@ -22,6 +22,13 @@ endfunction
 call AgdaReloadSyntax()
 
 function! AgdaLoad(quiet)
+    let prevwinnr = winnr()
+    let agdawinnr = bufwinnr('__Agda__')
+    if agdawinnr != -1
+        execute agdawinnr . 'wincmd w'
+        %d
+        execute prevwinnr . 'wincmd w'
+    endif
     " Do nothing.  Overidden below with a Python function if python is supported.
 endfunction
 
@@ -165,7 +172,7 @@ function! s:LogAgda(name, text, append)
         let eventignore_save = &eventignore
         set eventignore=all
 
-        silent keepalt botright 8split __Agda__
+        silent keepalt botright vertical 30split __Agda__
 
         let &eventignore = eventignore_save
         setlocal noreadonly
@@ -175,7 +182,7 @@ function! s:LogAgda(name, text, append)
         setlocal nobuflisted
         setlocal nolist
         setlocal nonumber
-        setlocal nowrap
+        setlocal wrap
         setlocal textwidth=0
         setlocal nocursorline
         setlocal nocursorcolumn
