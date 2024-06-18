@@ -75,6 +75,7 @@ if !exists('g:agda#default_glyphs')
     \   'all': '∀',
     \   'always': '□',
     \   'approx': '≈',
+    \   'apprlimit': '≐',
     \   'bot': '⊥',
     \   'box': '□',
     \   'boxdot': '⊡',
