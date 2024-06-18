@@ -357,16 +357,17 @@ def AgdaVersion(quiet):
 
 @vim_func(conv={'quiet': vim_bool})
 def AgdaLoad(quiet):
-    def clear_agda_buffer():
+    def clear_resize_agda_buffer():
         prevwinnr = int(vim.eval("winnr()"))
         agdawinnr = int(vim.eval("bufwinnr('__Agda__')"))
         if agdawinnr != -1:
             vim.command(f"{agdawinnr}wincmd w")
+            vim.command("vertical resize 30")
             vim.command("%d")
             vim.command(f"{prevwinnr}wincmd w")
 
     
-    clear_agda_buffer()
+    clear_resize_agda_buffer()
     f = vim.current.buffer.name
     sendCommandLoad(f, quiet)
 
