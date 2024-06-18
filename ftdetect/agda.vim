@@ -28,16 +28,5 @@ function! s:OpenAgdaBuffer()
     endif
 endfunction
 
-function! s:ResizeAgdaBuffer()
-    let agdawinnr = bufwinnr('__Agda__')
-    if agdawinnr != -1
-        execute agdawinnr . 'wincmd w'
-        execute 'vertical resize 30'
-    endif
-endfunction
+au BufRead,BufNewFile *.agda,*.lagda call s:OpenAgdaBuffer()
 
-augroup agda_nerdtree
-    autocmd!
-    autocmd BufRead,BufNewFile *.agda,*.lagda call s:OpenAgdaBuffer()
-    autocmd WinEnter,WinLeave * call s:ResizeAgdaBuffer()
-augroup END
